@@ -49,7 +49,8 @@
     enabled: true,
     hudVisible: true,
     showGraph: true,
-    screenShareQuality: 'hd', // 'hd', 'saver', 'freeze', 'off'
+    screenShareQuality: 'saver', // Remote screen share ('hd', 'saver', 'freeze', 'off')
+    myScreenShareQuality: 'text', // My screen share ('text', '720p', 'low', 'hd')
     preset: 'low',
     outgoingVideoQuality: '180p',
     outgoingMaxFps: 10,
@@ -851,19 +852,35 @@
               </div>
             </div>
 
-            <!-- Screen Share Quality -->
+            <!-- Remote Screen Share Quality (View) -->
             <div class="ml-control-row">
               <div class="ml-control-header">
-                <span class="ml-control-title">Screen Share Quality</span>
+                <span class="ml-control-title">Remote Screen Share (View)</span>
                 <span class="ml-saving-tag" id="ml-tag-screenshare">
                   ${currentConfig.screenShareQuality === 'freeze' ? '❄️ Frozen' : (currentConfig.screenShareQuality === 'saver' ? 'Saves 60%' : (currentConfig.screenShareQuality === 'off' ? 'Disabled' : 'Full HD'))}
                 </span>
               </div>
               <div class="ml-btn-group" id="ml-grp-screenshare">
-                <button class="ml-grp-btn ${(currentConfig.screenShareQuality || 'hd') === 'hd' ? 'active' : ''}" data-val="hd" title="Full 1080p/720p original quality">HD</button>
-                <button class="ml-grp-btn ${currentConfig.screenShareQuality === 'saver' ? 'active' : ''}" data-val="saver" title="Sharp text with slide-saver 5fps pacing">Saver</button>
+                <button class="ml-grp-btn ${(currentConfig.screenShareQuality || 'saver') === 'hd' ? 'active' : ''}" data-val="hd" title="Full 1080p/720p original quality">HD</button>
+                <button class="ml-grp-btn ${(currentConfig.screenShareQuality || 'saver') === 'saver' ? 'active' : ''}" data-val="saver" title="Sharp text with slide-saver 5fps pacing">Saver</button>
                 <button class="ml-grp-btn ${currentConfig.screenShareQuality === 'freeze' ? 'active' : ''}" data-val="freeze" title="Freeze on current slide (stops 100% video)">Freeze</button>
                 <button class="ml-grp-btn ${currentConfig.screenShareQuality === 'off' ? 'active' : ''}" data-val="off" title="Turn off screen share stream">OFF</button>
+              </div>
+            </div>
+
+            <!-- My Screen Share Quality (Upload) -->
+            <div class="ml-control-row">
+              <div class="ml-control-header">
+                <span class="ml-control-title">My Screen Share (Upload)</span>
+                <span class="ml-saving-tag" id="ml-tag-my-screenshare">
+                  ${currentConfig.myScreenShareQuality === 'hd' ? 'Full 1080p' : (currentConfig.myScreenShareQuality === '720p' ? 'Balanced &bull; Saves 60%' : (currentConfig.myScreenShareQuality === 'low' ? 'Low &bull; Saves 90%' : 'Sharp Text &bull; Saves 80%'))}
+                </span>
+              </div>
+              <div class="ml-btn-group" id="ml-grp-my-screenshare">
+                <button class="ml-grp-btn ${(currentConfig.myScreenShareQuality || 'text') === 'text' ? 'active' : ''}" data-val="text" title="Full 1080p crisp text @ 5 fps &mdash; saves 80% upload data for slides and code">Text 5fps</button>
+                <button class="ml-grp-btn ${currentConfig.myScreenShareQuality === '720p' ? 'active' : ''}" data-val="720p" title="720p resolution @ 15 fps &mdash; balanced presentation mode">720p</button>
+                <button class="ml-grp-btn ${currentConfig.myScreenShareQuality === 'low' ? 'active' : ''}" data-val="low" title="480p resolution @ 5 fps &mdash; saves 90% upload data">Low</button>
+                <button class="ml-grp-btn ${currentConfig.myScreenShareQuality === 'hd' ? 'active' : ''}" data-val="hd" title="Full original uncapped quality (up to 1080p @ 30fps)">Full HD</button>
               </div>
             </div>
 
@@ -1479,6 +1496,20 @@
       saveConfig();
     });
 
+    bindButtonGroup(shadow, '#ml-grp-my-screenshare', (val) => {
+      currentConfig.myScreenShareQuality = val;
+      const tag = shadow.querySelector('#ml-tag-my-screenshare');
+      if (tag) {
+        if (val === 'hd') tag.textContent = 'Full 1080p';
+        else if (val === '720p') tag.textContent = 'Balanced • Saves 60%';
+        else if (val === 'low') tag.textContent = 'Low • Saves 90%';
+        else tag.textContent = 'Sharp Text • Saves 80%';
+      }
+      currentConfig.preset = 'custom';
+      updatePresetUI(shadow, 'custom');
+      saveConfig();
+    });
+
     // Checkboxes
     const chkAudio = shadow.querySelector('#ml-chk-audio');
     chkAudio.addEventListener('change', () => {
@@ -1553,6 +1584,7 @@
       currentConfig.outgoingVideoMaxKbps = 20;
       currentConfig.incomingVideoMode = 'audio_only';
       currentConfig.screenShareQuality = 'freeze';
+      currentConfig.myScreenShareQuality = 'low';
       currentConfig.audioSaver = true;
       currentConfig.freezeInactiveTab = true;
       autoCapGoogleMeetServer('audio_only', shadow);
@@ -1562,6 +1594,7 @@
       currentConfig.outgoingVideoMaxKbps = 120;
       currentConfig.incomingVideoMode = 'audio_only';
       currentConfig.screenShareQuality = 'saver';
+      currentConfig.myScreenShareQuality = 'text';
       currentConfig.audioSaver = true;
       currentConfig.freezeInactiveTab = true;
       autoCapGoogleMeetServer('360p_single', shadow);
@@ -1571,6 +1604,7 @@
       currentConfig.outgoingVideoMaxKbps = 400;
       currentConfig.incomingVideoMode = 'low';
       currentConfig.screenShareQuality = 'saver';
+      currentConfig.myScreenShareQuality = '720p';
       currentConfig.audioSaver = false;
       currentConfig.freezeInactiveTab = true;
       autoCapGoogleMeetServer('360p', shadow);
@@ -1580,15 +1614,25 @@
     syncActive(shadow, '#ml-grp-video', currentConfig.outgoingVideoQuality);
     syncActive(shadow, '#ml-grp-fps', currentConfig.outgoingMaxFps.toString());
     syncActive(shadow, '#ml-grp-remote', currentConfig.incomingVideoMode);
-    syncActive(shadow, '#ml-grp-screenshare', currentConfig.screenShareQuality || 'hd');
+    syncActive(shadow, '#ml-grp-screenshare', currentConfig.screenShareQuality || 'saver');
+    syncActive(shadow, '#ml-grp-my-screenshare', currentConfig.myScreenShareQuality || 'text');
 
     const ssTag = shadow.querySelector('#ml-tag-screenshare');
     if (ssTag) {
-      const q = currentConfig.screenShareQuality || 'hd';
+      const q = currentConfig.screenShareQuality || 'saver';
       if (q === 'freeze') ssTag.textContent = '❄️ Frozen';
       else if (q === 'saver') ssTag.textContent = 'Saves 60%';
       else if (q === 'off') ssTag.textContent = 'Disabled';
       else ssTag.textContent = 'Full HD';
+    }
+
+    const mySsTag = shadow.querySelector('#ml-tag-my-screenshare');
+    if (mySsTag) {
+      const q = currentConfig.myScreenShareQuality || 'text';
+      if (q === 'hd') mySsTag.textContent = 'Full 1080p';
+      else if (q === '720p') mySsTag.textContent = 'Balanced • Saves 60%';
+      else if (q === 'low') mySsTag.textContent = 'Low • Saves 90%';
+      else mySsTag.textContent = 'Sharp Text • Saves 80%';
     }
 
     const chkAudio = shadow.querySelector('#ml-chk-audio');

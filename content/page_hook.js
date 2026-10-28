@@ -19,12 +19,26 @@
     outgoingMaxFps: 10,             // 5, 10, 15, 30
     outgoingVideoMaxKbps: 120,      // 40, 120, 350, 1500
     incomingVideoMode: 'audio_only', // 'audio_only', 'low', 'normal'
+    screenShareQuality: 'saver',    // Remote incoming screen share
+    myScreenShareQuality: 'text',   // Outgoing own screen share ('text', '720p', 'low', 'hd')
     audioSaver: true,               // Cap Opus to ~20 kbps
     freezeInactiveTab: true,        // Freeze remote video when tab is hidden
     blockVisualEffects: true
   };
 
   const activePCs = new Set();
+
+  // Helper to distinguish Screen Share tracks from Camera tracks
+  function isScreenShareTrack(track) {
+    if (!track) return false;
+    if (track.__isScreenShare) return true;
+    const settings = (typeof track.getSettings === 'function') ? track.getSettings() : {};
+    if (settings.displaySurface) return true; // 'monitor', 'window', 'browser'
+    const label = (track.label || '').toLowerCase();
+    if (label.includes('screen') || label.includes('window') || label.includes('display') || label.includes('web-contents')) return true;
+    if (track.contentHint === 'detail' || track.contentHint === 'text') return true;
+    return false;
+  }
 
   // -------------------------------------------------------------
   // 1. Intercept getUserMedia (Safe Hardware Resolution Clamping)
@@ -100,6 +114,53 @@
   }
 
   // -------------------------------------------------------------
+  // 1a. Intercept getDisplayMedia (Outgoing Screen Share Clamping)
+  // Clamps frame pacing to 5fps for crisp 1080p text, saving 80% upload data
+  // -------------------------------------------------------------
+  if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
+    const origGDM = navigator.mediaDevices.getDisplayMedia.bind(navigator.mediaDevices);
+
+    navigator.mediaDevices.getDisplayMedia = async function (constraints) {
+      const config = window.__meetLiteConfig;
+      if (config.enabled === false) {
+        return origGDM(constraints);
+      }
+
+      const q = config.myScreenShareQuality || 'text';
+      let targetFps = 5;
+      if (q === 'hd' || q === 'full') targetFps = 30;
+      else if (q === '720p') targetFps = 15;
+      else if (q === 'low') targetFps = 5;
+
+      let safeConstraints = constraints ? { ...constraints } : { video: true };
+      if (typeof safeConstraints.video === 'boolean') {
+        safeConstraints.video = { frameRate: { ideal: targetFps, max: targetFps } };
+      } else if (typeof safeConstraints.video === 'object' && safeConstraints.video !== null) {
+        safeConstraints.video = { ...safeConstraints.video, frameRate: { ideal: targetFps, max: targetFps } };
+      }
+
+      try {
+        const stream = await origGDM(safeConstraints);
+        stream.getVideoTracks().forEach((track) => {
+          track.__isScreenShare = true;
+          if (track.applyConstraints) {
+            track.applyConstraints({ frameRate: { ideal: targetFps, max: targetFps } }).catch(() => {});
+          }
+        });
+        setTimeout(() => applyCurrentSettings(), 100);
+        return stream;
+      } catch (err) {
+        const fallback = await origGDM(constraints);
+        fallback.getVideoTracks().forEach((track) => {
+          track.__isScreenShare = true;
+        });
+        setTimeout(() => applyCurrentSettings(), 100);
+        return fallback;
+      }
+    };
+  }
+
+  // -------------------------------------------------------------
   // 1b. Intercept MediaStreamTrack.prototype.applyConstraints
   // Prevents Google Meet from silently re-elevating camera to 720p @ 30fps
   // -------------------------------------------------------------
@@ -112,6 +173,28 @@
       }
 
       if (this.kind === 'video') {
+        // If this is a screen share track, preserve 1080p clarity and clamp FPS only
+        if (isScreenShareTrack(this)) {
+          const q = config.myScreenShareQuality || 'text';
+          let targetFps = 5;
+          if (q === 'hd' || q === 'full') targetFps = 30;
+          else if (q === '720p') targetFps = 15;
+          else if (q === 'low') targetFps = 5;
+
+          const safe = { ...constraints };
+          if (typeof safe.frameRate === 'object' && safe.frameRate !== null) {
+            safe.frameRate = { ...safe.frameRate, ideal: targetFps, max: targetFps };
+          } else {
+            safe.frameRate = { ideal: targetFps, max: targetFps };
+          }
+
+          try {
+            return await origApplyConstraints.call(this, safe);
+          } catch (e) {
+            return origApplyConstraints.apply(this, arguments);
+          }
+        }
+
         let idealW = 320;
         let idealH = 180;
         if (config.outgoingVideoQuality === '180p') {
@@ -207,10 +290,39 @@
   // 3. Simulcast-Aware Bitrate Budget Allocation
   // Prevents multi-layer simulcast from tripling bitrate to 1.5k–2k
   // -------------------------------------------------------------
-  function clampEncodings(encodings, config, kind) {
+  function clampEncodings(encodings, config, kind, isScreenShare = false) {
     if (!encodings || encodings.length === 0) return;
 
     if (kind === 'video') {
+      if (isScreenShare) {
+        // Outgoing Screen Share Clamping
+        const q = config.myScreenShareQuality || 'text';
+        let maxBitrate = 400 * 1000;
+        let maxFps = 5;
+
+        if (q === 'hd' || q === 'full') {
+          maxBitrate = 3000 * 1000;
+          maxFps = 30;
+        } else if (q === '720p') {
+          maxBitrate = 800 * 1000;
+          maxFps = 15;
+        } else if (q === 'low') {
+          maxBitrate = 200 * 1000;
+          maxFps = 5;
+        } else {
+          // 'text' - Sharp 1080p text @ 5fps
+          maxBitrate = 400 * 1000;
+          maxFps = 5;
+        }
+
+        encodings.forEach((enc) => {
+          enc.active = true;
+          enc.maxBitrate = maxBitrate;
+          enc.maxFramerate = maxFps;
+        });
+        return;
+      }
+
       const totalCapBps = (config.outgoingVideoMaxKbps || 120) * 1000;
       const maxFps = config.outgoingMaxFps || 10;
 
@@ -283,7 +395,8 @@
 
       if (params && params.encodings && params.encodings.length > 0) {
         const kind = (this.track && this.track.kind) ? this.track.kind : 'video';
-        clampEncodings(params.encodings, config, kind);
+        const isScreen = isScreenShareTrack(this.track);
+        clampEncodings(params.encodings, config, kind, isScreen);
       }
 
       try {
@@ -486,14 +599,19 @@
           if (!sender.track) continue;
 
           if (sender.track.kind === 'video') {
-            sender.track.enabled = (config.outgoingVideoQuality !== 'off');
+            const isScreen = isScreenShareTrack(sender.track);
+            if (isScreen) {
+              sender.track.enabled = true; // Screen share stays active even if camera is OFF
+            } else {
+              sender.track.enabled = (config.outgoingVideoQuality !== 'off');
+            }
 
             const params = sender.getParameters();
             if (params && params.encodings && params.encodings.length > 0) {
-              clampEncodings(params.encodings, config, 'video');
+              clampEncodings(params.encodings, config, 'video', isScreen);
               await sender.setParameters(params).catch(async () => {
                 // Safe fallback: evenly budget without active toggle
-                const capBps = Math.floor(((config.outgoingVideoMaxKbps || 120) * 1000) / params.encodings.length);
+                const capBps = isScreen ? 400000 : Math.floor(((config.outgoingVideoMaxKbps || 120) * 1000) / params.encodings.length);
                 params.encodings.forEach((enc) => {
                   enc.maxBitrate = capBps;
                   delete enc.active;
