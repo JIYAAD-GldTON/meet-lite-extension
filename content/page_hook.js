@@ -702,6 +702,22 @@
     let packetsLost = 0;
     let packetsRecv = 0;
 
+    // Prune closed or disconnected peer connections to avoid leaks
+    for (const pc of Array.from(activePCs)) {
+      if (pc.connectionState === 'closed' || pc.connectionState === 'failed' || pc.signalingState === 'closed') {
+        activePCs.delete(pc);
+      }
+    }
+
+    // Periodic garbage collection for stats counters
+    if (prevReportCounters.size > 200) {
+      for (const [id, data] of prevReportCounters.entries()) {
+        if (now - data.timestamp > 30000) {
+          prevReportCounters.delete(id);
+        }
+      }
+    }
+
     for (const pc of activePCs) {
       if (pc.connectionState === 'closed') continue;
       try {

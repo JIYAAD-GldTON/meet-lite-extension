@@ -136,6 +136,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         chrome.storage.sync.set({ meetLiteConfig: config });
+
+        // Broadcast preset changes to all active Google Meet tabs
+        chrome.tabs.query({ url: '*://meet.google.com/*' }, (tabs) => {
+          tabs.forEach((tab) => {
+            chrome.tabs.sendMessage(tab.id, { type: 'MEET_LITE_SET_CONFIG', config }).catch(() => {});
+          });
+        });
       });
     });
   });
