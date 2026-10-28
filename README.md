@@ -26,6 +26,7 @@ Google Meet by default consumes **massive** amounts of data:
 |---|---|---|---|
 | **Outgoing Camera Video** | 1,500 – 3,500 Kbps | **0 – 120 Kbps** (180p @ 10fps or OFF) | **92% – 100%** |
 | **Incoming Video Feeds** | 2,000 – 5,000 Kbps | **0 Kbps** (Audio-Only Mode) | **100%** |
+| **Outgoing Screen Share** | 1,500 – 3,000 Kbps | **200 – 400 Kbps** (Text 5fps @ 1080p) | **80% – 85%** |
 | **Opus Audio Stream** | 48 – 64 Kbps | **20 Kbps** (Voice-Optimized Opus) | **60%** |
 | **Background Blur / Filters** | +300 Kbps + GPU load | **Blocked** | **100%** |
 | **Background Tab Inactive** | Full video streaming | **Auto-Frozen** | **100%** during notes |
@@ -50,25 +51,39 @@ Google Meet by default consumes **massive** amounts of data:
 1. **In-Call Draggable Floating HUD**:
    - Live network speed gauges showing real-time upload (⬆️) and download (⬇️) in Kbps.
    - Cumulative session data saved counter (e.g. `~145 MB saved`).
-   - One-click presets and individual feature toggles.
-   - Draggable header; remembers position across calls.
-   - Minimize button collapses HUD into a tiny floating pill.
+   - One-click presets and individual granular controls.
+   - Draggable header; remembers position and size across meetings.
+   - **Collapsible Floating Capsule Pill**: Minimize button (`−`) collapses the spacious HUD into a sleek, draggable floating pill showing live bandwidth and active status without obstructing video feeds. Click anywhere on the pill to expand back!
 
-2. **WebRTC Media Engine Interceptors**:
+2. **In-Call Real-Time Rolling Mini Graph**:
+   - Live 60-second canvas graph tracking upload and download bandwidth trends inside Google Meet.
+   - High-contrast visual comparison against standard Google Meet consumption (~3.2 Mbps baseline).
+
+3. **Granular Screen Share Optimization**:
+   - **Incoming Screen Share Control**: Switch between Full HD, Saver (-60% data), Frozen, or completely OFF.
+   - **Outgoing Screen Share Clamping**: Paces display capture to 5fps for crisp 1080p text clarity while cutting upload bandwidth by over 80%.
+
+4. **WebRTC Media Engine Interceptors**:
    - Intercepts `navigator.mediaDevices.getUserMedia` before Meet captures the camera stream to clamp resolution to 180p/360p and cap framerate to 5/10/15 fps.
    - Patches `RTCRtpSender.prototype.setParameters` to enforce maximum bitrate ceilings (`maxBitrate`).
    - Hooks remote video receivers to mute incoming video tracks in Audio-Only mode without breaking audio.
+   - Automatically prunes dead or closed peer connections to prevent memory leakage in long-running calls.
 
-3. **Auto-Freeze on Inactive Tab**:
+5. **Auto-Freeze on Inactive Tab**:
    - Detects when you switch to another tab or minimize the browser window.
    - Automatically pauses incoming video streams while keeping audio crystal clear.
    - Instantly resumes when you switch back.
 
-4. **Telemetry & Tracker Shield**:
+6. **WebRTC Loopback Bandwidth Test Bench**:
+   - Includes an interactive offline test tool (`tester/tester.html`).
+   - Run real WebRTC loopback tests using synthetic animated video feeds or your webcam to verify bitrate clamping, resolution changes, and bandwidth graphing before joining a live call.
+
+7. **Telemetry & Tracker Shield**:
    - Uses Chrome's `declarativeNetRequest` to block analytics and telemetry endpoints (`google-analytics.com`, `play.google.com/log`, etc.) with zero performance overhead.
 
-5. **Toolbar Action Badge**:
+8. **Toolbar Action Badge & Control Center**:
    - Real-time bandwidth indicator directly on your browser toolbar icon (e.g. `45k` green badge).
+   - Instant popup dashboard for quick preset changes, data export/import, and meeting status.
 
 ---
 
@@ -109,16 +124,21 @@ Because standard Chrome for Android does not support extensions, you can run Mee
 meet-lite-extension/
 ├── manifest.json               # Manifest V3 configuration & permissions
 ├── rules.json                  # DeclarativeNetRequest rules for blocking telemetry
+├── LICENSE                     # MIT Open Source License
 ├── background/
 │   └── service_worker.js       # Background service worker & badge manager
 ├── content/
 │   ├── page_hook.js            # Injected in MAIN world (WebRTC & media clamps)
 │   ├── hud_injector.js         # Injected in ISOLATED world (HUD DOM & events)
-│   └── hud.css                 # Glassmorphic HUD styling
+│   └── hud.css                 # HUD styling & isolated Shadow DOM rules
 ├── popup/
 │   ├── popup.html              # Extension toolbar popup interface
 │   ├── popup.js                # Popup logic & preset controller
-│   └── popup.css               # Popup dark-theme styling
+│   └── popup.css               # Popup styling
+├── tester/
+│   ├── tester.html             # WebRTC bandwidth loopback test bench
+│   ├── tester.js               # Synthetic & camera stream generator with live graph
+│   └── tester.css              # Test bench styling
 ├── icons/
 │   ├── icon16.png
 │   ├── icon48.png
@@ -133,3 +153,9 @@ meet-lite-extension/
 - **100% Local**: All processing, bitrate clamping, and telemetry blocking happen strictly on your machine.
 - **Zero Remote Tracking**: MeetLite contains zero analytics or remote calls.
 - **Open Code**: Every script is unminified and fully transparent.
+
+---
+
+## 📄 License
+
+This project is licensed under the [MIT License](LICENSE) — free and open source for everyone.
