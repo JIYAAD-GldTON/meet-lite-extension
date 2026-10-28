@@ -5,6 +5,8 @@
 const DEFAULT_CONFIG = {
   enabled: true,
   hudVisible: true,
+  showGraph: true,
+  screenShareQuality: 'hd',
   preset: 'low',
   outgoingVideoQuality: '180p',
   outgoingMaxFps: 10,
