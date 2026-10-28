@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MeetLite</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-box">
+    <!-- Header -->
+    <header class="header">
+      <div class="brand">
+        <span class="brand-badge">LITE</span>
+        <div>
+          <h1 class="brand-title">MeetLite</h1>
+          <span class="brand-sub">Low Bandwidth Shield</span>
+        </div>
+      </div>
+      <div class="status-pill" id="status-pill">
+        <span class="status-dot" id="status-dot"></span>
+        <span class="status-text" id="status-text">Checking...</span>
+      </div>
+    </header>
+
+    <!-- Master Control Switches -->
+    <section class="master-card">
+      <div class="master-row">
+        <div>
+          <div class="master-title">MeetLite Master Shield</div>
+          <div class="master-desc">Enable or disable all optimizations</div>
+        </div>
+        <label class="switch-ui">
+          <input type="checkbox" id="chk-master" checked>
+          <span class="slider-ui"></span>
+        </label>
+      </div>
+
+      <div class="master-row" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #f1f5f9;">
+        <div>
+          <div class="master-title">In-Call Floating HUD</div>
+          <div class="master-desc">Show on-screen meter & toggles in Meet</div>
+        </div>
+        <label class="switch-ui">
+          <input type="checkbox" id="chk-hud" checked>
+          <span class="slider-ui"></span>
+        </label>
+      </div>
+    </section>
+
+    <!-- Metrics Dashboard -->
+    <section class="metrics-card">
+      <div class="metrics-grid">
+        <div class="metric-box">
+          <span class="metric-label">Upload</span>
+          <span class="metric-num sent" id="val-upload">0 Kbps</span>
+        </div>
+        <div class="metric-box">
+          <span class="metric-label">Download</span>
+          <span class="metric-num recv" id="val-download">0 Kbps</span>
+        </div>
+      </div>
+      <div class="savings-row">
+        <span>Session Data Saved:</span>
+        <strong class="savings-val" id="val-saved">~0 MB</strong>
+      </div>
+    </section>
+
+    <!-- Presets -->
+    <section class="section">
+      <div class="section-title">Default Network Preset</div>
+      <div class="presets-list">
+        <button class="preset-card" data-preset="ultra" id="preset-ultra">
+          <div class="preset-top">
+            <span class="preset-name">⚡ Ultra-Saver</span>
+            <span class="preset-bw">~40 Kbps</span>
+          </div>
+          <div class="preset-desc">Audio only, camera disabled (maximum 2G/3G savings)</div>
+        </button>
+
+        <button class="preset-card active" data-preset="low" id="preset-low">
+          <div class="preset-top">
+            <span class="preset-name">🛡️ Low Bandwidth (Recommended)</span>
+            <span class="preset-bw">~180 Kbps</span>
+          </div>
+          <div class="preset-desc">180p @ 10fps camera, audio-only remote feeds</div>
+        </button>
+
+        <button class="preset-card" data-preset="balanced" id="preset-balanced">
+          <div class="preset-top">
+            <span class="preset-name">⚖️ Balanced</span>
+            <span class="preset-bw">~600 Kbps</span>
+          </div>
+          <div class="preset-desc">360p camera, low-res remote feeds</div>
+        </button>
+      </div>
+    </section>
+
+    <!-- Breakdown Table -->
+    <section class="section">
+      <div class="section-title">Network Savings Summary</div>
+      <div class="table-card">
+        <div class="table-row">
+          <span>Camera Video (720p)</span>
+          <span class="tag danger">1.5–3.5 Mbps</span>
+        </div>
+        <div class="table-row">
+          <span>Remote Video Grid</span>
+          <span class="tag danger">2.0–5.0 Mbps</span>
+        </div>
+        <div class="table-row">
+          <span>Opus Audio Saver</span>
+          <span class="tag success">20 Kbps (-60%)</span>
+        </div>
+        <div class="table-row">
+          <span>Inactive Tab Video</span>
+          <span class="tag success">Auto-Frozen (0 Kbps)</span>
+        </div>
+        <div class="table-row">
+          <span>Google Telemetry</span>
+          <span class="tag success">Blocked</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer Action -->
+    <footer class="footer">
+      <button class="btn-primary" id="btn-open-meet">Open Google Meet</button>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

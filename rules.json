@@ -1,0 +1,56 @@
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "urlFilter": "||google-analytics.com",
+      "resourceTypes": ["xmlhttprequest", "script", "ping", "other"]
+    }
+  },
+  {
+    "id": 2,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "urlFilter": "||analytics.google.com",
+      "resourceTypes": ["xmlhttprequest", "script", "ping", "other"]
+    }
+  },
+  {
+    "id": 3,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "urlFilter": "||stats.g.doubleclick.net",
+      "resourceTypes": ["xmlhttprequest", "script", "ping", "image", "other"]
+    }
+  },
+  {
+    "id": 4,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "urlFilter": "||googletagmanager.com",
+      "resourceTypes": ["xmlhttprequest", "script", "ping", "other"]
+    }
+  },
+  {
+    "id": 5,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "urlFilter": "||play.google.com/log",
+      "resourceTypes": ["xmlhttprequest", "ping", "other"]
+    }
+  },
+  {
+    "id": 6,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "urlFilter": "meet.google.com/api/telemetry",
+      "resourceTypes": ["xmlhttprequest", "ping", "other"]
+    }
+  }
+]

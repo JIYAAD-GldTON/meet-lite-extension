@@ -1,0 +1,66 @@
+{
+  "manifest_version": 3,
+  "name": "MeetLite - Low Bandwidth Google Meet",
+  "version": "1.0.0",
+  "description": "Run Google Meet on bare minimum network. Cap video bitrates, freeze remote feeds, block telemetry and view real-time data stats.",
+  "permissions": [
+    "storage",
+    "declarativeNetRequest"
+  ],
+  "host_permissions": [
+    "https://meet.google.com/*",
+    "*://*.google-analytics.com/*",
+    "*://analytics.google.com/*",
+    "*://stats.g.doubleclick.net/*"
+  ],
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "telemetry_rules",
+        "enabled": true,
+        "path": "rules.json"
+      }
+    ]
+  },
+  "background": {
+    "service_worker": "background/service_worker.js"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "MeetLite Control Center",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://meet.google.com/*"],
+      "js": ["content/page_hook.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://meet.google.com/*"],
+      "js": ["content/hud_injector.js"],
+      "css": ["content/hud.css"],
+      "run_at": "document_end",
+      "world": "ISOLATED"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "icons/*",
+        "content/hud.css"
+      ],
+      "matches": ["https://meet.google.com/*"]
+    }
+  ]
+}

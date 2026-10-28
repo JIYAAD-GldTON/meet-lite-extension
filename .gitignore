@@ -1,0 +1,11 @@
+# Chrome extension temporary metadata
+_metadata/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs and environment
+*.log
+.env
