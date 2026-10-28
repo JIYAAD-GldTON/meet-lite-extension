@@ -50,8 +50,7 @@
     hudVisible: true,
     isMinimized: false,
     showGraph: true,
-    screenShareQuality: 'saver', // Remote screen share ('hd', 'saver', 'freeze', 'off')
-    myScreenShareQuality: 'text', // My screen share ('text', '720p', 'low', 'hd')
+    screenShareQuality: 'hd', // 'hd', 'saver', 'freeze', 'off'
     preset: 'low',
     outgoingVideoQuality: '180p',
     outgoingMaxFps: 10,
@@ -154,10 +153,10 @@
         user-select: none !important;
       }
 
-      /* Capsule Pill */
+      /* Capsule Pill (Minimized View) */
       #meet-lite-hud-pill {
-        display: flex;
-        align-items: center;
+        display: none !important;
+        align-items: center !important;
         gap: 10px !important;
         padding: 8px 16px !important;
         background: #ffffff !important;
@@ -167,6 +166,10 @@
         cursor: pointer !important;
         white-space: nowrap !important;
         transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease !important;
+      }
+
+      #meet-lite-hud-pill.ml-visible {
+        display: flex !important;
       }
 
       #meet-lite-hud-pill:hover {
@@ -216,6 +219,10 @@
         overflow: hidden !important;
         position: relative !important;
         resize: both !important;
+      }
+
+      #meet-lite-hud-card.ml-hidden {
+        display: none !important;
       }
 
       #meet-lite-hud-card.disabled-mode .ml-body-content {
@@ -345,6 +352,10 @@
       .ml-btn-icon:hover {
         background: #e2e8f0 !important;
         color: #0f172a !important;
+      }
+
+      .ml-btn-icon svg {
+        pointer-events: none !important;
       }
 
       /* Body Content */
@@ -747,14 +758,14 @@
     wrapper.className = 'ml-root-wrap';
     wrapper.innerHTML = `
       <!-- Capsule Pill (Minimized Floating Box) -->
-      <div id="meet-lite-hud-pill" style="display: ${isMin ? 'flex' : 'none'};" title="Click to expand MeetLite HUD (or drag to reposition)">
+      <div id="meet-lite-hud-pill" class="${isMin ? 'ml-visible' : ''}" style="${isMin ? 'display: flex !important;' : 'display: none !important;'}" title="Click to expand MeetLite HUD (or drag to reposition)">
         <div class="ml-pill-dot ${isOff ? 'disabled' : ''}"></div>
         <span class="ml-pill-title">MeetLite</span>
         <span class="ml-pill-stat" id="ml-pill-stat">${isOff ? 'OFF' : `${currentStats.totalKbps || 0} Kbps`}</span>
       </div>
 
       <!-- Adjustable Resizable Card -->
-      <div id="meet-lite-hud-card" class="${isOff ? 'disabled-mode' : ''}" style="display: ${isMin ? 'none' : 'flex'};">
+      <div id="meet-lite-hud-card" class="${isOff ? 'disabled-mode' : ''} ${isMin ? 'ml-hidden' : ''}" style="${isMin ? 'display: none !important;' : 'display: flex !important;'}">
         
         <!-- Header -->
         <div class="ml-card-header" id="ml-drag-header">
@@ -774,7 +785,9 @@
             </div>
 
             <!-- Minimize Button -->
-            <button class="ml-btn-icon" id="ml-btn-minimize" title="Minimize to floating pill">−</button>
+            <button class="ml-btn-icon" id="ml-btn-minimize" title="Minimize to floating pill" aria-label="Minimize HUD">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="4" y1="12" x2="20" y2="12"></line></svg>
+            </button>
 
             <!-- Close Button -->
             <button class="ml-btn-icon" id="ml-btn-close" title="Hide HUD">✕</button>
@@ -876,35 +889,19 @@
               </div>
             </div>
 
-            <!-- Remote Screen Share Quality (View) -->
+            <!-- Screen Share Quality -->
             <div class="ml-control-row">
               <div class="ml-control-header">
-                <span class="ml-control-title">Remote Screen Share (View)</span>
+                <span class="ml-control-title">Screen Share Quality</span>
                 <span class="ml-saving-tag" id="ml-tag-screenshare">
                   ${currentConfig.screenShareQuality === 'freeze' ? '❄️ Frozen' : (currentConfig.screenShareQuality === 'saver' ? 'Saves 60%' : (currentConfig.screenShareQuality === 'off' ? 'Disabled' : 'Full HD'))}
                 </span>
               </div>
               <div class="ml-btn-group" id="ml-grp-screenshare">
-                <button class="ml-grp-btn ${(currentConfig.screenShareQuality || 'saver') === 'hd' ? 'active' : ''}" data-val="hd" title="Full 1080p/720p original quality">HD</button>
-                <button class="ml-grp-btn ${(currentConfig.screenShareQuality || 'saver') === 'saver' ? 'active' : ''}" data-val="saver" title="Sharp text with slide-saver 5fps pacing">Saver</button>
+                <button class="ml-grp-btn ${(currentConfig.screenShareQuality || 'hd') === 'hd' ? 'active' : ''}" data-val="hd" title="Full 1080p/720p original quality">HD</button>
+                <button class="ml-grp-btn ${currentConfig.screenShareQuality === 'saver' ? 'active' : ''}" data-val="saver" title="Sharp text with slide-saver 5fps pacing">Saver</button>
                 <button class="ml-grp-btn ${currentConfig.screenShareQuality === 'freeze' ? 'active' : ''}" data-val="freeze" title="Freeze on current slide (stops 100% video)">Freeze</button>
                 <button class="ml-grp-btn ${currentConfig.screenShareQuality === 'off' ? 'active' : ''}" data-val="off" title="Turn off screen share stream">OFF</button>
-              </div>
-            </div>
-
-            <!-- My Screen Share Quality (Upload) -->
-            <div class="ml-control-row">
-              <div class="ml-control-header">
-                <span class="ml-control-title">My Screen Share (Upload)</span>
-                <span class="ml-saving-tag" id="ml-tag-my-screenshare">
-                  ${currentConfig.myScreenShareQuality === 'hd' ? 'Full 1080p' : (currentConfig.myScreenShareQuality === '720p' ? 'Balanced &bull; Saves 60%' : (currentConfig.myScreenShareQuality === 'low' ? 'Low &bull; Saves 90%' : 'Sharp Text &bull; Saves 80%'))}
-                </span>
-              </div>
-              <div class="ml-btn-group" id="ml-grp-my-screenshare">
-                <button class="ml-grp-btn ${(currentConfig.myScreenShareQuality || 'text') === 'text' ? 'active' : ''}" data-val="text" title="Full 1080p crisp text @ 5 fps &mdash; saves 80% upload data for slides and code">Text 5fps</button>
-                <button class="ml-grp-btn ${currentConfig.myScreenShareQuality === '720p' ? 'active' : ''}" data-val="720p" title="720p resolution @ 15 fps &mdash; balanced presentation mode">720p</button>
-                <button class="ml-grp-btn ${currentConfig.myScreenShareQuality === 'low' ? 'active' : ''}" data-val="low" title="480p resolution @ 5 fps &mdash; saves 90% upload data">Low</button>
-                <button class="ml-grp-btn ${currentConfig.myScreenShareQuality === 'hd' ? 'active' : ''}" data-val="hd" title="Full original uncapped quality (up to 1080p @ 30fps)">Full HD</button>
               </div>
             </div>
 
@@ -1374,26 +1371,51 @@
       saveConfig();
     });
 
-    // Minimize to capsule pill
-    if (minBtn && pill) {
+    // Bulletproof minimize / restore handler
+    function setMinimizedState(minimized) {
+      currentConfig.isMinimized = Boolean(minimized);
+      if (currentConfig.isMinimized) {
+        card.classList.add('ml-hidden');
+        card.style.setProperty('display', 'none', 'important');
+        pill.classList.add('ml-visible');
+        pill.style.setProperty('display', 'flex', 'important');
+      } else {
+        card.classList.remove('ml-hidden');
+        card.style.setProperty('display', 'flex', 'important');
+        pill.classList.remove('ml-visible');
+        pill.style.setProperty('display', 'none', 'important');
+
+        // Prevent offscreen bounds when expanding
+        if (host.style.left && host.style.left !== 'auto') {
+          const curX = parseFloat(host.style.left) || 0;
+          const cardW = card.offsetWidth || 360;
+          if (curX + cardW > window.innerWidth - 10) {
+            host.style.left = `${Math.max(10, window.innerWidth - cardW - 20)}px`;
+          }
+          const curY = parseFloat(host.style.top) || 0;
+          const cardH = card.offsetHeight || 380;
+          if (curY + cardH > window.innerHeight - 10) {
+            host.style.top = `${Math.max(10, window.innerHeight - cardH - 20)}px`;
+          }
+        }
+      }
+      saveConfig();
+    }
+
+    if (minBtn) {
       minBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         e.preventDefault();
-        card.style.display = 'none';
-        pill.style.display = 'flex';
-        currentConfig.isMinimized = true;
-        saveConfig();
+        setMinimizedState(true);
       });
+    }
 
-      // Click pill to restore full HUD card (unless user was dragging)
+    if (pill) {
       pill.addEventListener('click', (e) => {
         if (pill.dataset.dragged === 'true') {
           return;
         }
-        pill.style.display = 'none';
-        card.style.display = 'flex';
-        currentConfig.isMinimized = false;
-        saveConfig();
+        setMinimizedState(false);
       });
     }
 
@@ -1572,20 +1594,6 @@
       saveConfig();
     });
 
-    bindButtonGroup(shadow, '#ml-grp-my-screenshare', (val) => {
-      currentConfig.myScreenShareQuality = val;
-      const tag = shadow.querySelector('#ml-tag-my-screenshare');
-      if (tag) {
-        if (val === 'hd') tag.textContent = 'Full 1080p';
-        else if (val === '720p') tag.textContent = 'Balanced • Saves 60%';
-        else if (val === 'low') tag.textContent = 'Low • Saves 90%';
-        else tag.textContent = 'Sharp Text • Saves 80%';
-      }
-      currentConfig.preset = 'custom';
-      updatePresetUI(shadow, 'custom');
-      saveConfig();
-    });
-
     // Checkboxes
     const chkAudio = shadow.querySelector('#ml-chk-audio');
     chkAudio.addEventListener('change', () => {
@@ -1660,7 +1668,6 @@
       currentConfig.outgoingVideoMaxKbps = 20;
       currentConfig.incomingVideoMode = 'audio_only';
       currentConfig.screenShareQuality = 'freeze';
-      currentConfig.myScreenShareQuality = 'low';
       currentConfig.audioSaver = true;
       currentConfig.freezeInactiveTab = true;
       autoCapGoogleMeetServer('audio_only', shadow);
@@ -1670,7 +1677,6 @@
       currentConfig.outgoingVideoMaxKbps = 120;
       currentConfig.incomingVideoMode = 'audio_only';
       currentConfig.screenShareQuality = 'saver';
-      currentConfig.myScreenShareQuality = 'text';
       currentConfig.audioSaver = true;
       currentConfig.freezeInactiveTab = true;
       autoCapGoogleMeetServer('360p_single', shadow);
@@ -1680,7 +1686,6 @@
       currentConfig.outgoingVideoMaxKbps = 400;
       currentConfig.incomingVideoMode = 'low';
       currentConfig.screenShareQuality = 'saver';
-      currentConfig.myScreenShareQuality = '720p';
       currentConfig.audioSaver = false;
       currentConfig.freezeInactiveTab = true;
       autoCapGoogleMeetServer('360p', shadow);
@@ -1690,25 +1695,15 @@
     syncActive(shadow, '#ml-grp-video', currentConfig.outgoingVideoQuality);
     syncActive(shadow, '#ml-grp-fps', currentConfig.outgoingMaxFps.toString());
     syncActive(shadow, '#ml-grp-remote', currentConfig.incomingVideoMode);
-    syncActive(shadow, '#ml-grp-screenshare', currentConfig.screenShareQuality || 'saver');
-    syncActive(shadow, '#ml-grp-my-screenshare', currentConfig.myScreenShareQuality || 'text');
+    syncActive(shadow, '#ml-grp-screenshare', currentConfig.screenShareQuality || 'hd');
 
     const ssTag = shadow.querySelector('#ml-tag-screenshare');
     if (ssTag) {
-      const q = currentConfig.screenShareQuality || 'saver';
+      const q = currentConfig.screenShareQuality || 'hd';
       if (q === 'freeze') ssTag.textContent = '❄️ Frozen';
       else if (q === 'saver') ssTag.textContent = 'Saves 60%';
       else if (q === 'off') ssTag.textContent = 'Disabled';
       else ssTag.textContent = 'Full HD';
-    }
-
-    const mySsTag = shadow.querySelector('#ml-tag-my-screenshare');
-    if (mySsTag) {
-      const q = currentConfig.myScreenShareQuality || 'text';
-      if (q === 'hd') mySsTag.textContent = 'Full 1080p';
-      else if (q === '720p') mySsTag.textContent = 'Balanced • Saves 60%';
-      else if (q === 'low') mySsTag.textContent = 'Low • Saves 90%';
-      else mySsTag.textContent = 'Sharp Text • Saves 80%';
     }
 
     const chkAudio = shadow.querySelector('#ml-chk-audio');
@@ -1890,11 +1885,15 @@
               const pillEl = shadow.querySelector('#meet-lite-hud-pill');
               if (card && pillEl) {
                 if (currentConfig.isMinimized) {
-                  card.style.display = 'none';
-                  pillEl.style.display = 'flex';
+                  card.classList.add('ml-hidden');
+                  card.style.setProperty('display', 'none', 'important');
+                  pillEl.classList.add('ml-visible');
+                  pillEl.style.setProperty('display', 'flex', 'important');
                 } else {
-                  card.style.display = 'flex';
-                  pillEl.style.display = 'none';
+                  card.classList.remove('ml-hidden');
+                  card.style.setProperty('display', 'flex', 'important');
+                  pillEl.classList.remove('ml-visible');
+                  pillEl.style.setProperty('display', 'none', 'important');
                 }
               }
               if (card) {

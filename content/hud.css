@@ -25,8 +25,8 @@
 
 /* Minimized Capsule Pill */
 #meet-lite-hud-pill {
-  display: flex;
-  align-items: center;
+  display: none !important;
+  align-items: center !important;
   gap: 10px;
   padding: 8px 16px;
   background: #ffffff;
@@ -35,6 +35,10 @@
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
   cursor: pointer;
   white-space: nowrap;
+}
+
+#meet-lite-hud-pill.ml-visible {
+  display: flex !important;
 }
 
 .ml-pill-dot {
@@ -76,6 +80,10 @@
   overflow: hidden !important;
   position: relative !important;
   resize: both !important;
+}
+
+#meet-lite-hud-card.ml-hidden {
+  display: none !important;
 }
 
 #meet-lite-hud-card.disabled-mode .ml-body-content {
