@@ -342,3 +342,24 @@ body {
 .btn-primary:hover {
   background: #1d4ed8;
 }
+
+.btn-secondary {
+  width: 100%;
+  background: #f8fafc;
+  color: #1e293b;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-top: 6px;
+}
+
+.btn-secondary:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #0f172a;
+}

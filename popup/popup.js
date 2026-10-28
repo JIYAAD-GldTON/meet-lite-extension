@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const chkMaster = document.getElementById('chk-master');
   const chkHud = document.getElementById('chk-hud');
+  const chkGraph = document.getElementById('chk-graph');
   const presetCards = document.querySelectorAll('.preset-card');
 
   // 1. Immediately read cached stats from chrome.storage.local
@@ -29,6 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const config = res.meetLiteConfig || {};
       chkMaster.checked = config.enabled !== false;
       chkHud.checked = config.hudVisible !== false;
+      if (chkGraph) chkGraph.checked = config.showGraph !== false;
       setActivePresetUI(config.preset || 'low');
     });
   }
@@ -64,6 +66,24 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
   });
+
+  // Bandwidth Graph Switch Change
+  if (chkGraph) {
+    chkGraph.addEventListener('change', () => {
+      const isShow = chkGraph.checked;
+      chrome.storage.sync.get(['meetLiteConfig'], (res) => {
+        let config = res.meetLiteConfig || {};
+        config.showGraph = isShow;
+        chrome.storage.sync.set({ meetLiteConfig: config });
+
+        chrome.tabs.query({ url: '*://meet.google.com/*' }, (tabs) => {
+          tabs.forEach((tab) => {
+            chrome.tabs.sendMessage(tab.id, { type: 'MEET_LITE_SET_CONFIG', config }).catch(() => {});
+          });
+        });
+      });
+    });
+  }
 
   function setActivePresetUI(preset) {
     presetCards.forEach((card) => {
@@ -165,4 +185,13 @@ document.addEventListener('DOMContentLoaded', () => {
       window.close();
     });
   });
+
+  // Open WebRTC Bandwidth Tester & Live Graph
+  const btnOpenTester = document.getElementById('btn-open-tester');
+  if (btnOpenTester) {
+    btnOpenTester.addEventListener('click', () => {
+      chrome.tabs.create({ url: chrome.runtime.getURL('tester/tester.html') });
+      window.close();
+    });
+  }
 });

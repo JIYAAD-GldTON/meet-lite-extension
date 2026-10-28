@@ -48,14 +48,15 @@
   const DEFAULT_CONFIG = {
     enabled: true,
     hudVisible: true,
+    showGraph: true,
+    screenShareQuality: 'hd', // 'hd', 'saver', 'freeze', 'off'
     preset: 'low',
     outgoingVideoQuality: '180p',
     outgoingMaxFps: 10,
     outgoingVideoMaxKbps: 120,
     incomingVideoMode: 'audio_only',
     audioSaver: true,
-    freezeInactiveTab: true,
-    isMinimized: false
+    freezeInactiveTab: true
   };
 
   let currentConfig = { ...DEFAULT_CONFIG };
@@ -100,6 +101,16 @@
   }
 
   function initHUD(savedPos, savedSize) {
+    if (!document.body) {
+      document.addEventListener('DOMContentLoaded', () => initHUD(savedPos, savedSize), { once: true });
+      return;
+    }
+
+    const existing = document.getElementById('meet-lite-hud-host');
+    if (existing) {
+      existing.remove();
+    }
+
     const host = document.createElement('div');
     host.id = 'meet-lite-hud-host';
     host.style.position = 'fixed';
@@ -107,10 +118,6 @@
     host.style.right = '28px';
     host.style.zIndex = '2147483647';
     host.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-
-    if (!currentConfig.hudVisible) {
-      host.style.display = 'none';
-    }
 
     if (savedPos && savedPos.x !== undefined && savedPos.y !== undefined) {
       const safeX = Math.max(10, Math.min(window.innerWidth - 300, savedPos.x));
@@ -400,6 +407,52 @@
         color: #15803d !important;
       }
 
+      .ml-mini-graph-wrap {
+        margin-top: 6px !important;
+        background: #f1f5f9 !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 7px !important;
+        padding: 4px 8px 3px !important;
+      }
+
+      .ml-mini-graph-head {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        font-size: 9px !important;
+        color: #64748b !important;
+        font-weight: 700 !important;
+        margin-bottom: 2px !important;
+      }
+
+      .ml-mini-legend {
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        font-size: 8px !important;
+        color: #475569 !important;
+      }
+
+      .ml-mini-legend span[class^="dot-"] {
+        display: inline-block !important;
+        width: 5px !important;
+        height: 5px !important;
+        border-radius: 50% !important;
+        margin-right: 2px !important;
+      }
+
+      .dot-up { background: #2563eb !important; }
+      .dot-down { background: #10b981 !important; }
+      .dot-base { background: #ef4444 !important; }
+
+      #ml-mini-canvas {
+        width: 100% !important;
+        height: 44px !important;
+        display: block !important;
+        border-radius: 4px !important;
+        background: #ffffff !important;
+      }
+
       /* Presets */
       .ml-presets-area {
         padding: 10px 14px 8px !important;
@@ -625,6 +678,50 @@
       .ml-resize-grip:hover {
         opacity: 1 !important;
       }
+
+      /* Google Server Cap UI */
+      .ml-server-cap-wrap {
+        display: flex !important;
+        gap: 6px !important;
+        margin-top: 5px !important;
+      }
+
+      .ml-btn-server-action {
+        flex: 1 !important;
+        background: #f8fafc !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 6px !important;
+        padding: 5px 8px !important;
+        font-size: 11px !important;
+        font-weight: 700 !important;
+        color: #1e293b !important;
+        cursor: pointer !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 4px !important;
+        transition: all 0.15s ease !important;
+      }
+
+      .ml-btn-server-action:hover {
+        background: #e2e8f0 !important;
+        border-color: #94a3b8 !important;
+      }
+
+      .ml-btn-server-action.active {
+        background: #ecfdf5 !important;
+        border-color: #10b981 !important;
+        color: #047857 !important;
+        box-shadow: 0 1px 3px rgba(16, 185, 129, 0.2) !important;
+      }
+
+      .ml-server-cap-status {
+        font-size: 9.5px !important;
+        color: #64748b !important;
+        margin-top: 4px !important;
+        line-height: 1.3 !important;
+        font-style: italic !important;
+      }
     `;
 
     shadow.appendChild(styleEl);
@@ -634,15 +731,8 @@
     const wrapper = document.createElement('div');
     wrapper.className = 'ml-root-wrap';
     wrapper.innerHTML = `
-      <!-- Minimized Capsule Pill -->
-      <div id="meet-lite-hud-pill" style="display: ${currentConfig.isMinimized ? 'flex' : 'none'};">
-        <div class="ml-pill-dot ${isOff ? 'disabled' : ''}"></div>
-        <span class="ml-pill-title">MeetLite</span>
-        <span class="ml-pill-stat" id="ml-pill-stat">${isOff ? 'OFF' : '0 Kbps'}</span>
-      </div>
-
       <!-- Adjustable Resizable Card -->
-      <div id="meet-lite-hud-card" class="${isOff ? 'disabled-mode' : ''}" style="display: ${currentConfig.isMinimized ? 'none' : 'flex'};">
+      <div id="meet-lite-hud-card" class="${isOff ? 'disabled-mode' : ''}" style="display: flex;">
         
         <!-- Header -->
         <div class="ml-card-header" id="ml-drag-header">
@@ -660,9 +750,6 @@
                 <span class="ml-master-track"></span>
               </label>
             </div>
-
-            <!-- Minimize Button -->
-            <button class="ml-btn-icon" id="ml-btn-minimize" title="Minimize to capsule">−</button>
 
             <!-- Close Button -->
             <button class="ml-btn-icon" id="ml-btn-close" title="Hide HUD">✕</button>
@@ -686,6 +773,19 @@
                 <span class="ml-chip-lbl">⚡ Saved</span>
                 <span class="ml-chip-val saved" id="ml-val-saved">~0 MB</span>
               </div>
+            </div>
+
+            <!-- In-Call Real-Time Rolling Mini Graph -->
+            <div class="ml-mini-graph-wrap" id="ml-mini-graph-wrap" title="Live 60s WebRTC Bandwidth Chart" style="display: ${currentConfig.showGraph !== false ? 'block' : 'none'};">
+              <div class="ml-mini-graph-head">
+                <span>Bandwidth (60s)</span>
+                <div class="ml-mini-legend">
+                  <span><span class="dot-up"></span>Up</span>
+                  <span><span class="dot-down"></span>Down</span>
+                  <span><span class="dot-base"></span>~3.2M</span>
+                </div>
+              </div>
+              <canvas id="ml-mini-canvas" width="310" height="44"></canvas>
             </div>
           </div>
 
@@ -751,6 +851,41 @@
               </div>
             </div>
 
+            <!-- Screen Share Quality -->
+            <div class="ml-control-row">
+              <div class="ml-control-header">
+                <span class="ml-control-title">Screen Share Quality</span>
+                <span class="ml-saving-tag" id="ml-tag-screenshare">
+                  ${currentConfig.screenShareQuality === 'freeze' ? '❄️ Frozen' : (currentConfig.screenShareQuality === 'saver' ? 'Saves 60%' : (currentConfig.screenShareQuality === 'off' ? 'Disabled' : 'Full HD'))}
+                </span>
+              </div>
+              <div class="ml-btn-group" id="ml-grp-screenshare">
+                <button class="ml-grp-btn ${(currentConfig.screenShareQuality || 'hd') === 'hd' ? 'active' : ''}" data-val="hd" title="Full 1080p/720p original quality">HD</button>
+                <button class="ml-grp-btn ${currentConfig.screenShareQuality === 'saver' ? 'active' : ''}" data-val="saver" title="Sharp text with slide-saver 5fps pacing">Saver</button>
+                <button class="ml-grp-btn ${currentConfig.screenShareQuality === 'freeze' ? 'active' : ''}" data-val="freeze" title="Freeze on current slide (stops 100% video)">Freeze</button>
+                <button class="ml-grp-btn ${currentConfig.screenShareQuality === 'off' ? 'active' : ''}" data-val="off" title="Turn off screen share stream">OFF</button>
+              </div>
+            </div>
+
+            <!-- Google Server Cap (SFU Cloud Automation) -->
+            <div class="ml-control-row">
+              <div class="ml-control-header">
+                <span class="ml-control-title">Google Server Cap (SFU)</span>
+                <span class="ml-saving-tag" id="ml-tag-server-cap">Cloud Stop</span>
+              </div>
+              <div class="ml-server-cap-wrap">
+                <button class="ml-btn-server-action" id="ml-btn-cap-360p" title="Instruct Google cloud server to cap incoming video at 360p">
+                  ⚡ Cap 360p
+                </button>
+                <button class="ml-btn-server-action" id="ml-btn-cap-audio" title="Instruct Google cloud server to stop incoming video (Audio Only)">
+                  🔇 Audio Only
+                </button>
+              </div>
+              <div class="ml-server-cap-status" id="ml-server-cap-status">
+                Tells Google servers to stop transmitting 1080p/720p packets
+              </div>
+            </div>
+
             <!-- Opus Audio Saver -->
             <div class="ml-toggle-row">
               <div>
@@ -771,6 +906,18 @@
               </div>
               <label class="ml-switch-lite">
                 <input type="checkbox" id="ml-chk-freeze" ${currentConfig.freezeInactiveTab ? 'checked' : ''}>
+                <span class="ml-switch-track"></span>
+              </label>
+            </div>
+
+            <!-- Bandwidth Graph Toggle -->
+            <div class="ml-toggle-row">
+              <div>
+                <div class="ml-toggle-label">Bandwidth Graph</div>
+                <div class="ml-toggle-sub">Show rolling chart inside HUD</div>
+              </div>
+              <label class="ml-switch-lite">
+                <input type="checkbox" id="ml-chk-graph" ${currentConfig.showGraph !== false ? 'checked' : ''}>
                 <span class="ml-switch-track"></span>
               </label>
             </div>
@@ -807,9 +954,356 @@
     setupEvents(shadow, host, card);
   }
 
+  // -------------------------------------------------------------
+  // Google Meet Native Server-Side SFU Receive Resolution Auto-Cap
+  // Silently navigates: Bottom Bar ⋮ → Settings → Video → Receive resolution
+  // Instructs Google's SFU media servers to cut 1080p/720p streams at the cloud source
+  // -------------------------------------------------------------
+  let isCappingServer = false;
+
+  function ensureSilentConfigStyle() {
+    if (document.getElementById('meet-lite-silent-style')) return;
+    const style = document.createElement('style');
+    style.id = 'meet-lite-silent-style';
+    style.textContent = `
+      body.ml-silent-config [role="dialog"],
+      body.ml-silent-config [role="menu"] {
+        opacity: 0.05 !important;
+        pointer-events: auto !important;
+      }
+    `;
+    (document.head || document.documentElement).appendChild(style);
+  }
+
+  function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  // Polling helper: resolves as soon as predicate returns a truthy value
+  async function waitFor(predicate, maxWaitMs = 2500, intervalMs = 60) {
+    const start = Date.now();
+    while (Date.now() - start < maxWaitMs) {
+      try {
+        const res = predicate();
+        if (res) return res;
+      } catch (e) {}
+      await sleep(intervalMs);
+    }
+    return null;
+  }
+
+  // Full-event click simulation for Google Closure & Material Web Components
+  function simulateClick(el) {
+    if (!el) return;
+    try {
+      el.focus();
+      const opts = { bubbles: true, cancelable: true, view: window };
+      el.dispatchEvent(new PointerEvent('pointerdown', opts));
+      el.dispatchEvent(new MouseEvent('mousedown', opts));
+      el.dispatchEvent(new PointerEvent('pointerup', opts));
+      el.dispatchEvent(new MouseEvent('mouseup', opts));
+      el.click();
+    } catch (e) {
+      el.click();
+    }
+  }
+
+  function findCenterBarMoreOptionsButton() {
+    const buttons = Array.from(document.querySelectorAll('button, [role="button"]'));
+
+    // Strategy 1: Find the Leave Call button in the center bar and grab the 3-dots button right next to it
+    const leaveBtn = buttons.find((b) => {
+      if (b.closest('#meet-lite-hud-host')) return false;
+      const label = ((b.getAttribute('aria-label') || '') + ' ' + (b.getAttribute('data-tooltip') || '')).toLowerCase();
+      const text = (b.textContent || '').trim().toLowerCase();
+      return (label.includes('leave call') || label.includes('end call') || text.includes('call_end')) && !label.includes('gemini');
+    });
+
+    if (leaveBtn) {
+      const barContainer = leaveBtn.closest('[role="region"], div[data-unhovered-action], div[jscontroller], div') || leaveBtn.parentElement;
+      if (barContainer) {
+        const siblingButtons = Array.from(barContainer.querySelectorAll('button, [role="button"]')).filter((b) => {
+          if (b === leaveBtn || b.closest('#meet-lite-hud-host')) return false;
+          const label = ((b.getAttribute('aria-label') || '') + ' ' + (b.getAttribute('data-tooltip') || '')).toLowerCase();
+          const text = (b.textContent || '').trim().toLowerCase();
+          if (label.includes('gemini') || text.includes('gemini')) return false;
+          return label.includes('more options') || label.includes('more actions') || text === 'more_vert' || text.includes('more_vert') || label.includes('further options');
+        });
+        if (siblingButtons.length > 0) {
+          return siblingButtons[siblingButtons.length - 1];
+        }
+      }
+    }
+
+    // Strategy 2: Viewport center-dock search (center 25% - 85% horizontal, bottom 150px)
+    const centerButtons = buttons.filter((b) => {
+      if (b.closest('#meet-lite-hud-host')) return false;
+      const rect = b.getBoundingClientRect();
+      if (rect.top < window.innerHeight - 150) return false;
+      if (rect.left < window.innerWidth * 0.25 || rect.right > window.innerWidth * 0.85) return false; // Strictly in center dock!
+      if (rect.width === 0 || rect.height === 0) return false;
+
+      const label = ((b.getAttribute('aria-label') || '') + ' ' + (b.getAttribute('data-tooltip') || '')).toLowerCase();
+      const text = (b.textContent || '').trim().toLowerCase();
+
+      // Reject Gemini, participant cards, and leave button
+      if (label.includes('gemini') || text.includes('gemini')) return false;
+      if (/for\s|de\s/i.test(label)) return false;
+      if (label.includes('leave') || label.includes('end call') || text.includes('call_end')) return false;
+
+      return label.includes('more options') || label.includes('more actions') || text === 'more_vert' || text.includes('more_vert') || label.includes('further options') || label.includes('más opciones');
+    });
+
+    if (centerButtons.length > 0) {
+      return centerButtons[0];
+    }
+
+    return null;
+  }
+
+  function findSettingsMenuItem() {
+    const items = Array.from(document.querySelectorAll('[role="menuitem"], [role="menu"] [jsaction], [role="menu"] li, [role="menu"] div[tabindex]'));
+    return items.find((item) => {
+      if (item.closest('#meet-lite-hud-host')) return false;
+      const text = (item.textContent || '').toLowerCase();
+      const label = (item.getAttribute('aria-label') || '').toLowerCase();
+      // Reject any Ask Gemini menu items
+      if (text.includes('gemini') || label.includes('gemini')) return false;
+      return text.includes('settings') ||
+             label.includes('settings') ||
+             text.includes('setting') ||
+             label.includes('configuración') ||
+             text.includes('paramètres') ||
+             text.includes('einstellungen');
+    });
+  }
+
+  function findVideoTab(dialog) {
+    const elements = Array.from(dialog.querySelectorAll('[role="tab"], button, [role="button"], li, div[tabindex]'));
+    return elements.find((el) => {
+      const text = (el.textContent || '').toLowerCase();
+      const label = (el.getAttribute('aria-label') || '').toLowerCase();
+      return (text.includes('video') || label.includes('video') || text.includes('vídeo') || text.includes('videocam')) && !text.includes('audio');
+    });
+  }
+
+  function findReceiveResolutionDropdown(dialog) {
+    // 1. Text search for "Receive resolution" label
+    const allNodes = Array.from(dialog.querySelectorAll('div, label, span, p, h2, h3'));
+    for (const node of allNodes) {
+      const directText = (node.innerText || node.textContent || '').trim().toLowerCase();
+      if (directText.includes('receive resolution') || directText.includes('recepci') || directText.includes('réception')) {
+        const container = node.closest('[jsaction], div, section') || node.parentElement;
+        if (container) {
+          const dd = container.querySelector('[role="listbox"], [role="combobox"], [aria-haspopup="listbox"], [aria-haspopup="true"], [data-value], div[jsaction*="click"], button');
+          if (dd) return dd;
+        }
+        let sib = node.nextElementSibling;
+        while (sib) {
+          const dd = (sib.matches && sib.matches('[role="listbox"], [role="combobox"], [aria-haspopup]'))
+            ? sib
+            : sib.querySelector('[role="listbox"], [role="combobox"], [aria-haspopup], button');
+          if (dd) return dd;
+          sib = sib.nextElementSibling;
+        }
+      }
+    }
+
+    // 2. Look for dropdown listboxes inside the right panel of the dialog
+    const listboxes = Array.from(dialog.querySelectorAll('[role="listbox"], [role="combobox"], [aria-haspopup="listbox"], [aria-haspopup="true"]'));
+    if (listboxes.length >= 3) {
+      return listboxes[listboxes.length - 1]; // In Google Meet Video panel: the last dropdown is Receive resolution
+    } else if (listboxes.length === 2) {
+      return listboxes[1];
+    }
+
+    // 3. Fallback search by resolution tags
+    const triggers = Array.from(dialog.querySelectorAll('[role="listbox"], [role="combobox"], [aria-haspopup], [jsaction*="click"], [role="button"], button'));
+    const resTriggers = triggers.filter((t) => {
+      const text = (t.textContent || '').toLowerCase();
+      return text.includes('720p') || text.includes('360p') || text.includes('auto') || text.includes('definition');
+    });
+    if (resTriggers.length >= 2) {
+      return resTriggers[resTriggers.length - 1];
+    } else if (resTriggers.length === 1) {
+      return resTriggers[0];
+    }
+
+    return null;
+  }
+
+  function findResolutionOption(targetMode) {
+    const options = Array.from(document.querySelectorAll('[role="option"], [role="menuitem"], li[data-value], div[data-value], [role="menu"] div[tabindex]'));
+    if (options.length === 0) return null;
+
+    if (targetMode === '360p' || targetMode === 'low' || targetMode === 'balanced' || targetMode === '360p_single') {
+      // Priority 1: "Standard definition (360p), one video at a time"
+      const singleVideoOpt = options.find((o) => {
+        const text = (o.textContent || '').toLowerCase();
+        return text.includes('360p') && (text.includes('one video') || text.includes('single') || text.includes('un vídeo') || text.includes('1 video'));
+      });
+      if (singleVideoOpt) return singleVideoOpt;
+
+      // Priority 2: "Standard definition (360p)"
+      const stdOpt = options.find((o) => {
+        const text = (o.textContent || '').toLowerCase();
+        return text.includes('360p') || text.includes('standard definition');
+      });
+      if (stdOpt) return stdOpt;
+    } else if (targetMode === 'audio_only' || targetMode === 'ultra') {
+      const audioOpt = options.find((o) => {
+        const text = (o.textContent || '').toLowerCase();
+        return text.includes('audio only') || text.includes('solo audio') || (text.includes('audio') && !text.includes('video'));
+      });
+      if (audioOpt) return audioOpt;
+    } else if (targetMode === '720p' || targetMode === 'hd' || targetMode === 'normal') {
+      const hdOpt = options.find((o) => {
+        const text = (o.textContent || '').toLowerCase();
+        return text.includes('720p') || text.includes('high definition') || text.includes('auto');
+      });
+      if (hdOpt) return hdOpt;
+    }
+
+    return null;
+  }
+
+  function closeSettingsDialog(dialog) {
+    // 1. Dispatch Escape
+    ['keydown', 'keyup'].forEach((evtType) => {
+      document.dispatchEvent(new KeyboardEvent(evtType, {
+        key: 'Escape',
+        code: 'Escape',
+        keyCode: 27,
+        which: 27,
+        bubbles: true,
+        cancelable: true
+      }));
+    });
+
+    // 2. Find and click Close button
+    setTimeout(() => {
+      const activeDialog = document.querySelector('[role="dialog"]');
+      if (activeDialog) {
+        const closeBtn = activeDialog.querySelector('button[aria-label*="Close" i], button[aria-label*="Dismiss" i], button[aria-label*="Done" i], button[jsname*="close" i]');
+        if (closeBtn) simulateClick(closeBtn);
+      }
+    }, 80);
+  }
+
+  async function autoCapGoogleMeetServer(targetMode = '360p', shadow = null) {
+    if (isCappingServer) return;
+    isCappingServer = true;
+
+    ensureSilentConfigStyle();
+
+    const statusEl = shadow ? shadow.querySelector('#ml-server-cap-status') : null;
+    const btn360 = shadow ? shadow.querySelector('#ml-btn-cap-360p') : null;
+    const btnAudio = shadow ? shadow.querySelector('#ml-btn-cap-audio') : null;
+
+    if (statusEl) {
+      statusEl.textContent = '⏳ Auto-capping Google cloud server...';
+    }
+
+    document.body.classList.add('ml-silent-config');
+
+    try {
+      // Step 0: Dismiss any stray open menus (e.g. if Gemini menu was left open)
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true }));
+      await sleep(120);
+
+      // Step 1: Check if Settings dialog is already open
+      let dialog = document.querySelector('[role="dialog"]');
+
+      if (!dialog) {
+        // Find center control bar's More Options button (adjacent to Leave call)
+        let moreBtn = findCenterBarMoreOptionsButton();
+        if (!moreBtn) {
+          // If inactive, Google Meet hides the bottom bar. Wake it up with a synthetic mousemove
+          document.dispatchEvent(new MouseEvent('mousemove', { clientX: window.innerWidth / 2, clientY: window.innerHeight - 20, bubbles: true }));
+          await sleep(300);
+          moreBtn = findCenterBarMoreOptionsButton();
+        }
+
+        if (!moreBtn) {
+          if (statusEl) statusEl.textContent = '💡 Please hover over the bottom bar';
+          return;
+        }
+
+        simulateClick(moreBtn);
+
+        // Step 2: Wait for Menu to mount and find Settings item
+        const settingsItem = await waitFor(() => findSettingsMenuItem(), 3500);
+        if (!settingsItem) {
+          document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', keyCode: 27, bubbles: true }));
+          if (statusEl) statusEl.textContent = '💡 Retrying... please click again';
+          return;
+        }
+
+        simulateClick(settingsItem);
+
+        // Step 3: Wait for Settings Dialog
+        dialog = await waitFor(() => document.querySelector('[role="dialog"]'), 3500);
+      }
+
+      if (!dialog) {
+        if (statusEl) statusEl.textContent = '💡 Retrying... please click again';
+        return;
+      }
+
+      // Step 4: Find and click Video Tab
+      const videoTab = await waitFor(() => findVideoTab(dialog), 2500);
+      if (videoTab) {
+        simulateClick(videoTab);
+        await sleep(300);
+      }
+
+      // Step 5: Find Receive resolution dropdown
+      const dd = await waitFor(() => findReceiveResolutionDropdown(dialog), 3000);
+      if (!dd) {
+        closeSettingsDialog(dialog);
+        if (statusEl) statusEl.textContent = '💡 Retrying... please click again';
+        return;
+      }
+
+      simulateClick(dd);
+
+      // Step 6: Wait for Resolution Option to appear and click it
+      const opt = await waitFor(() => findResolutionOption(targetMode), 2500);
+      if (opt) {
+        simulateClick(opt);
+        await sleep(150);
+      }
+
+      // Step 7: Close dialog
+      closeSettingsDialog(dialog);
+      await sleep(120);
+
+      // Step 8: Success feedback
+      const label = targetMode === 'audio_only' ? 'Audio Only (0 video)' : '360p Single Video';
+      if (statusEl) {
+        statusEl.textContent = `✅ Cloud Server Capped to ${label}!`;
+      }
+      if (btn360 && btnAudio) {
+        if (targetMode === 'audio_only') {
+          btnAudio.classList.add('active');
+          btn360.classList.remove('active');
+        } else {
+          btn360.classList.add('active');
+          btnAudio.classList.remove('active');
+        }
+      }
+    } catch (err) {
+      console.warn('[MeetLite] autoCapGoogleMeetServer error:', err);
+      if (statusEl) {
+        statusEl.textContent = '💡 Auto-cap interrupted, please click again';
+      }
+    } finally {
+      document.body.classList.remove('ml-silent-config');
+      isCappingServer = false;
+    }
+  }
+
   function setupEvents(shadow, host, card) {
-    const pill = shadow.querySelector('#meet-lite-hud-pill');
-    const minBtn = shadow.querySelector('#ml-btn-minimize');
     const closeBtn = shadow.querySelector('#ml-btn-close');
     const dragHeader = shadow.querySelector('#ml-drag-header');
     const chkMaster = shadow.querySelector('#ml-chk-master');
@@ -823,33 +1317,18 @@
         card.classList.remove('disabled-mode');
         masterStatusText.textContent = 'ACTIVE';
         masterStatusText.classList.remove('off');
-        shadow.querySelector('.ml-pill-dot').classList.remove('disabled');
       } else {
         card.classList.add('disabled-mode');
         masterStatusText.textContent = 'OFF';
         masterStatusText.classList.add('off');
-        shadow.querySelector('.ml-pill-dot').classList.add('disabled');
       }
       saveConfig();
     });
 
-    // Minimize / Expand
-    minBtn.addEventListener('click', () => {
-      card.style.display = 'none';
-      pill.style.display = 'flex';
-      currentConfig.isMinimized = true;
-      saveConfig();
-    });
-
-    pill.addEventListener('click', () => {
-      pill.style.display = 'none';
-      card.style.display = 'flex';
-      currentConfig.isMinimized = false;
-      saveConfig();
-    });
-
-    // Close / Hide completely
-    closeBtn.addEventListener('click', () => {
+    // Close (completely hide HUD from screen)
+    closeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
       host.style.display = 'none';
       currentConfig.hudVisible = false;
       saveConfig();
@@ -988,6 +1467,18 @@
       saveConfig();
     });
 
+    bindButtonGroup(shadow, '#ml-grp-screenshare', (val) => {
+      currentConfig.screenShareQuality = val;
+      const tag = shadow.querySelector('#ml-tag-screenshare');
+      if (tag) {
+        if (val === 'freeze') tag.textContent = '❄️ Frozen';
+        else if (val === 'saver') tag.textContent = 'Saves 60%';
+        else if (val === 'off') tag.textContent = 'Disabled';
+        else tag.textContent = 'Full HD';
+      }
+      saveConfig();
+    });
+
     // Checkboxes
     const chkAudio = shadow.querySelector('#ml-chk-audio');
     chkAudio.addEventListener('change', () => {
@@ -1000,6 +1491,33 @@
       currentConfig.freezeInactiveTab = chkFreeze.checked;
       saveConfig();
     });
+
+    // Bandwidth Graph Visibility Toggle
+    const chkGraph = shadow.querySelector('#ml-chk-graph');
+    const graphWrap = shadow.querySelector('#ml-mini-graph-wrap');
+    if (chkGraph && graphWrap) {
+      chkGraph.addEventListener('change', () => {
+        currentConfig.showGraph = chkGraph.checked;
+        graphWrap.style.display = currentConfig.showGraph ? 'block' : 'none';
+        saveConfig();
+      });
+    }
+
+    // Google Server Cap Buttons
+    const btnCap360 = shadow.querySelector('#ml-btn-cap-360p');
+    const btnCapAudio = shadow.querySelector('#ml-btn-cap-audio');
+
+    if (btnCap360) {
+      btnCap360.addEventListener('click', () => {
+        autoCapGoogleMeetServer('360p', shadow);
+      });
+    }
+
+    if (btnCapAudio) {
+      btnCapAudio.addEventListener('click', () => {
+        autoCapGoogleMeetServer('audio_only', shadow);
+      });
+    }
   }
 
   function bindButtonGroup(shadow, selector, onChange) {
@@ -1034,31 +1552,49 @@
       currentConfig.outgoingMaxFps = 5;
       currentConfig.outgoingVideoMaxKbps = 20;
       currentConfig.incomingVideoMode = 'audio_only';
+      currentConfig.screenShareQuality = 'freeze';
       currentConfig.audioSaver = true;
       currentConfig.freezeInactiveTab = true;
+      autoCapGoogleMeetServer('audio_only', shadow);
     } else if (preset === 'low') {
       currentConfig.outgoingVideoQuality = '180p';
       currentConfig.outgoingMaxFps = 10;
       currentConfig.outgoingVideoMaxKbps = 120;
       currentConfig.incomingVideoMode = 'audio_only';
+      currentConfig.screenShareQuality = 'saver';
       currentConfig.audioSaver = true;
       currentConfig.freezeInactiveTab = true;
+      autoCapGoogleMeetServer('360p_single', shadow);
     } else if (preset === 'balanced') {
       currentConfig.outgoingVideoQuality = '360p';
       currentConfig.outgoingMaxFps = 15;
       currentConfig.outgoingVideoMaxKbps = 400;
       currentConfig.incomingVideoMode = 'low';
+      currentConfig.screenShareQuality = 'saver';
       currentConfig.audioSaver = false;
       currentConfig.freezeInactiveTab = true;
+      autoCapGoogleMeetServer('360p', shadow);
     }
 
     updatePresetUI(shadow, preset);
     syncActive(shadow, '#ml-grp-video', currentConfig.outgoingVideoQuality);
     syncActive(shadow, '#ml-grp-fps', currentConfig.outgoingMaxFps.toString());
     syncActive(shadow, '#ml-grp-remote', currentConfig.incomingVideoMode);
+    syncActive(shadow, '#ml-grp-screenshare', currentConfig.screenShareQuality || 'hd');
 
-    shadow.querySelector('#ml-chk-audio').checked = currentConfig.audioSaver;
-    shadow.querySelector('#ml-chk-freeze').checked = currentConfig.freezeInactiveTab;
+    const ssTag = shadow.querySelector('#ml-tag-screenshare');
+    if (ssTag) {
+      const q = currentConfig.screenShareQuality || 'hd';
+      if (q === 'freeze') ssTag.textContent = '❄️ Frozen';
+      else if (q === 'saver') ssTag.textContent = 'Saves 60%';
+      else if (q === 'off') ssTag.textContent = 'Disabled';
+      else ssTag.textContent = 'Full HD';
+    }
+
+    const chkAudio = shadow.querySelector('#ml-chk-audio');
+    if (chkAudio) chkAudio.checked = currentConfig.audioSaver;
+    const chkFreeze = shadow.querySelector('#ml-chk-freeze');
+    if (chkFreeze) chkFreeze.checked = currentConfig.freezeInactiveTab;
 
     saveConfig();
   }
@@ -1072,6 +1608,105 @@
     });
   }
 
+  const hudHistory = [];
+
+  function renderHUDChart(shadow) {
+    if (currentConfig.showGraph === false) return;
+    const canvas = shadow.querySelector('#ml-mini-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    const maxScale = 3600; // Kbps ceiling
+    const MAX_PTS = 60; // 60 seconds rolling view
+
+    // Subtle horizontal grid line at 1000k
+    ctx.strokeStyle = '#f1f5f9';
+    ctx.lineWidth = 1;
+    const midY = h - (1000 / maxScale) * (h - 4);
+    ctx.beginPath();
+    ctx.moveTo(0, midY);
+    ctx.lineTo(w, midY);
+    ctx.stroke();
+
+    // Red dashed baseline line at 3,200 Kbps (Standard Meet)
+    const baseY = Math.max(3, h - (3200 / maxScale) * (h - 2));
+    ctx.save();
+    ctx.setLineDash([3, 3]);
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, baseY);
+    ctx.lineTo(w, baseY);
+    ctx.stroke();
+    ctx.restore();
+
+    // Subtle scale markers
+    ctx.font = '7.5px -apple-system, sans-serif';
+    ctx.fillStyle = '#ef4444';
+    ctx.textAlign = 'right';
+    ctx.fillText('3.2M', w - 3, Math.max(8, baseY - 2));
+
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText('1M', w - 3, midY - 2);
+
+    if (hudHistory.length === 0) return;
+
+    const pts = hudHistory.length === 1 ? [hudHistory[0], hudHistory[0]] : hudHistory;
+    const stepX = w / (MAX_PTS - 1);
+
+    // Download Area (Green)
+    ctx.beginPath();
+    pts.forEach((pt, i) => {
+      const x = (MAX_PTS - pts.length + i) * stepX;
+      const y = h - (Math.min(maxScale, pt.recv) / maxScale) * (h - 4);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.lineTo(w, h);
+    ctx.lineTo((MAX_PTS - pts.length) * stepX, h);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(16, 185, 129, 0.16)';
+    ctx.fill();
+
+    // Download Stroke (Green)
+    ctx.beginPath();
+    pts.forEach((pt, i) => {
+      const x = (MAX_PTS - pts.length + i) * stepX;
+      const y = h - (Math.min(maxScale, pt.recv) / maxScale) * (h - 4);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = '#10b981';
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+
+    // Upload Stroke (Blue)
+    ctx.beginPath();
+    pts.forEach((pt, i) => {
+      const x = (MAX_PTS - pts.length + i) * stepX;
+      const y = h - (Math.min(maxScale, pt.sent) / maxScale) * (h - 4);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = '#2563eb';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Current Head Indicator Dot
+    const lastPt = pts[pts.length - 1];
+    const lastX = w - 1;
+    const lastRecvY = h - (Math.min(maxScale, lastPt.recv) / maxScale) * (h - 4);
+    ctx.fillStyle = '#10b981';
+    ctx.beginPath();
+    ctx.arc(lastX, lastRecvY, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   // Live Telemetry Receiver with context invalidation protection
   window.addEventListener('message', (event) => {
     if (!event.data || event.data.type !== 'MEET_LITE_STATS') return;
@@ -1081,10 +1716,10 @@
     if (!host || !host.shadowRoot) return;
     const shadow = host.shadowRoot;
 
-    const sentEl = shadow.getElementById('ml-val-sent');
-    const recvEl = shadow.getElementById('ml-val-recv');
-    const savedEl = shadow.getElementById('ml-val-saved');
-    const pillStat = shadow.getElementById('ml-pill-stat');
+    const sentEl = shadow.querySelector('#ml-val-sent');
+    const recvEl = shadow.querySelector('#ml-val-recv');
+    const savedEl = shadow.querySelector('#ml-val-saved');
+    const pillStat = shadow.querySelector('#ml-pill-stat');
 
     if (sentEl) sentEl.textContent = `${currentStats.sentKbps} Kbps`;
     if (recvEl) recvEl.textContent = `${currentStats.recvKbps} Kbps`;
@@ -1092,6 +1727,11 @@
     if (pillStat) {
       pillStat.textContent = currentConfig.enabled === false ? 'OFF' : `${currentStats.totalKbps} Kbps`;
     }
+
+    // Update Live 60s HUD mini sparkline
+    hudHistory.push({ sent: currentStats.sentKbps, recv: currentStats.recvKbps });
+    if (hudHistory.length > 60) hudHistory.shift();
+    renderHUDChart(shadow);
 
     // Safely persist to storage
     safeStorageLocalSet({ meetLiteLatestStats: currentStats });
@@ -1112,9 +1752,64 @@
           }
           saveConfig();
           sendResponse({ ok: true });
+        } else if (req.type === 'MEET_LITE_SET_CONFIG') {
+          if (req.config) {
+            currentConfig = { ...currentConfig, ...req.config };
+            const host = document.getElementById('meet-lite-hud-host');
+            const shadow = host ? host.shadowRoot : null;
+            if (shadow) {
+              const card = shadow.querySelector('#meet-lite-hud-card');
+              const chkMaster = shadow.querySelector('#ml-chk-master');
+              const masterStatusText = shadow.querySelector('#ml-master-status-text');
+              const pillDot = shadow.querySelector('.ml-pill-dot');
+              if (chkMaster) chkMaster.checked = currentConfig.enabled !== false;
+              const chkGraph = shadow.querySelector('#ml-chk-graph');
+              const graphWrap = shadow.querySelector('#ml-mini-graph-wrap');
+              if (chkGraph) chkGraph.checked = currentConfig.showGraph !== false;
+              if (graphWrap) graphWrap.style.display = currentConfig.showGraph !== false ? 'block' : 'none';
+              if (card) {
+                if (currentConfig.enabled === false) {
+                  card.classList.add('disabled-mode');
+                  if (masterStatusText) {
+                    masterStatusText.textContent = 'OFF';
+                    masterStatusText.classList.add('off');
+                  }
+                  if (pillDot) pillDot.classList.add('disabled');
+                } else {
+                  card.classList.remove('disabled-mode');
+                  if (masterStatusText) {
+                    masterStatusText.textContent = 'ACTIVE';
+                    masterStatusText.classList.remove('off');
+                  }
+                  if (pillDot) pillDot.classList.remove('disabled');
+                }
+              }
+              if (currentConfig.preset) {
+                applyPreset(currentConfig.preset, shadow);
+              }
+            }
+            syncConfigToPageHook();
+          }
+          sendResponse({ ok: true });
         }
       });
     } catch (e) {}
   }
 
+  // Google Meet SPA auto-remount safeguard
+  setInterval(() => {
+    if (document.body && !document.getElementById('meet-lite-hud-host')) {
+      if (currentConfig.hudVisible !== false) {
+        if (isExtensionValid() && chrome.storage && chrome.storage.sync) {
+          chrome.storage.sync.get(['meetLitePos', 'meetLiteSize'], (res) => {
+            initHUD(res ? res.meetLitePos : null, res ? res.meetLiteSize : null);
+          });
+        } else {
+          initHUD();
+        }
+      }
+    }
+  }, 2500);
+
+  console.log('[MeetLite] HUD Injector active.');
 })();

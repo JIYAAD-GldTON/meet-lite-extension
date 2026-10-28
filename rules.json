@@ -43,14 +43,5 @@
       "urlFilter": "||play.google.com/log",
       "resourceTypes": ["xmlhttprequest", "ping", "other"]
     }
-  },
-  {
-    "id": 6,
-    "priority": 1,
-    "action": { "type": "block" },
-    "condition": {
-      "urlFilter": "meet.google.com/api/telemetry",
-      "resourceTypes": ["xmlhttprequest", "ping", "other"]
-    }
   }
 ]

@@ -58,7 +58,8 @@
     {
       "resources": [
         "icons/*",
-        "content/hud.css"
+        "content/hud.css",
+        "tester/*"
       ],
       "matches": ["https://meet.google.com/*"]
     }

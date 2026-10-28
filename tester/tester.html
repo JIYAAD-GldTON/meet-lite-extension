@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MeetLite — WebRTC Bandwidth & Savings Tester</title>
+  <link rel="stylesheet" href="tester.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="brand">
+        <span class="badge">TEST BENCH</span>
+        <h1>MeetLite Bandwidth & Performance Tester</h1>
+      </div>
+      <p class="subtitle">
+        Live WebRTC loopback simulation showing real-time bitrate capping, hardware resolution clamping, and bandwidth savings graphs.
+      </p>
+    </header>
+
+    <!-- Top KPI Grid -->
+    <section class="kpi-grid">
+      <div class="kpi-card">
+        <span class="kpi-label">⬆ Upload Speed</span>
+        <div class="kpi-val sent" id="kpi-upload">0 Kbps</div>
+        <span class="kpi-sub" id="kpi-upload-sub">Webcam stream bitrate</span>
+      </div>
+
+      <div class="kpi-card">
+        <span class="kpi-label">⬇ Download Speed</span>
+        <div class="kpi-val recv" id="kpi-download">0 Kbps</div>
+        <span class="kpi-sub" id="kpi-download-sub">Incoming stream bitrate</span>
+      </div>
+
+      <div class="kpi-card highlight">
+        <span class="kpi-label">⚡ Bandwidth Reduction</span>
+        <div class="kpi-val savings" id="kpi-savings">0%</div>
+        <span class="kpi-sub" id="kpi-savings-sub">vs. Standard Google Meet (~3.2 Mbps)</span>
+      </div>
+
+      <div class="kpi-card">
+        <span class="kpi-label">Resolution & FPS</span>
+        <div class="kpi-val" id="kpi-res-fps">-- × -- @ 0 fps</div>
+        <span class="kpi-sub" id="kpi-hourly-sub">Saves ~1.4 GB / hr</span>
+      </div>
+    </section>
+
+    <!-- Live Chart Section -->
+    <section class="chart-section">
+      <div class="chart-header">
+        <div>
+          <h2>Real-Time Bandwidth Graph (Rolling 60 Seconds)</h2>
+          <span class="chart-desc">Updated every second via real WebRTC <code>RTCPeerConnection.getStats()</code></span>
+        </div>
+        <div class="chart-legend">
+          <span class="leg-item"><span class="leg-line line-standard"></span> Standard Meet (3,200 Kbps)</span>
+          <span class="leg-item"><span class="leg-line line-upload"></span> Upload (Kbps)</span>
+          <span class="leg-item"><span class="leg-line line-download"></span> Download (Kbps)</span>
+        </div>
+      </div>
+      <div class="canvas-wrap">
+        <canvas id="tester-canvas" width="900" height="260"></canvas>
+      </div>
+    </section>
+
+    <!-- Interactive Presets & Controls -->
+    <section class="controls-card">
+      <h3>Select Network Preset (Watch Graph React in Real-Time):</h3>
+      <div class="preset-buttons">
+        <button class="btn-preset" data-preset="ultra" id="btn-p-ultra">
+          <div class="p-title">⚡ Ultra-Saver</div>
+          <div class="p-meta">~40 Kbps &bull; Audio-Only (0p @ 0fps)</div>
+        </button>
+
+        <button class="btn-preset active" data-preset="low" id="btn-p-low">
+          <div class="p-title">🛡️ Low Bandwidth (Recommended)</div>
+          <div class="p-meta">~150–180 Kbps &bull; 180p @ 10fps</div>
+        </button>
+
+        <button class="btn-preset" data-preset="balanced" id="btn-p-balanced">
+          <div class="p-title">⚖️ Balanced</div>
+          <div class="p-meta">~450–600 Kbps &bull; 360p @ 15fps</div>
+        </button>
+
+        <button class="btn-preset" data-preset="standard" id="btn-p-standard">
+          <div class="p-title">🌐 Standard Google Meet</div>
+          <div class="p-meta">~2,500–3,500 Kbps &bull; 720p @ 30fps (Uncapped)</div>
+        </button>
+      </div>
+
+      <div class="actions-row">
+        <button class="btn-action primary" id="btn-start-stream">▶ Start WebRTC Live Test</button>
+        <button class="btn-action secondary" id="btn-toggle-source">Switch to Synthetic Video</button>
+        <button class="btn-action secondary" id="btn-mock-cap-360">⚡ Cloud Server Cap: 360p</button>
+        <button class="btn-action secondary" id="btn-mock-cap-audio">🔇 Cloud Server Cap: Audio Only</button>
+        <button class="btn-action secondary" id="btn-toggle-graph">Toggle Graph (On/Off)</button>
+        <button class="btn-action secondary" id="btn-clear-graph">Clear History</button>
+      </div>
+    </section>
+
+    <!-- Side-by-Side Video Feeds -->
+    <section class="video-grid">
+      <div class="video-card">
+        <div class="video-header">
+          <span>Outgoing Stream (Clamped Media Capture)</span>
+          <span class="badge" id="badge-sender">Active</span>
+        </div>
+        <div class="video-container">
+          <video id="video-sender" autoplay playsinline muted></video>
+        </div>
+      </div>
+
+      <div class="video-card">
+        <div class="video-header">
+          <span>Incoming Stream (Remote Participant Loopback)</span>
+          <span class="badge" id="badge-receiver">Active</span>
+        </div>
+        <div class="video-container">
+          <video id="video-receiver" autoplay playsinline muted></video>
+        </div>
+      </div>
+    </section>
+
+    <!-- In-Call Verification Guide -->
+    <section class="guide-card">
+      <h3>🔍 How to Test in an Actual Google Meet Call:</h3>
+      <div class="guide-steps">
+        <div class="step-item">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <strong>Check MeetLite's In-Call Floating HUD</strong>
+            <p>During any live meeting, look at the floating HUD in the bottom-right corner. The <strong>⬆ Up</strong> and <strong>⬇ Down</strong> chips update live every second from the real WebRTC socket.</p>
+          </div>
+        </div>
+
+        <div class="step-item">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <strong>Check Chrome's Built-In WebRTC Diagnostic Tool</strong>
+            <p>Open a new browser tab and type <code>chrome://webrtc-internals/</code>. Click on your active Meet peer connection to see Google Chrome's native bandwidth graph confirming the capped bitrate.</p>
+          </div>
+        </div>
+
+        <div class="step-item">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <strong>Check Google Meet's Native Troubleshooting Panel</strong>
+            <p>Inside the Google Meet call, click <strong>More options (⋮) &rarr; Troubleshooting and help &rarr; Audio and video network stability</strong>. You will see Meet's native network graph running in the green safe zone.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="tester.js"></script>
+</body>
+</html>

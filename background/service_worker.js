@@ -3,6 +3,8 @@
  */
 
 const DEFAULT_CONFIG = {
+  enabled: true,
+  hudVisible: true,
   preset: 'low',
   outgoingVideoQuality: '180p',
   outgoingMaxFps: 10,
