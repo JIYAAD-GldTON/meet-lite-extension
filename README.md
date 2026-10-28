@@ -84,7 +84,7 @@ Google Meet by default consumes **massive** amounts of data:
 3. Click the **"Load unpacked"** button.
 4. Select the directory:
    ```
-   D:\GEMINI\meet-lite-extension
+   path/to/meet-lite-extension
    ```
 5. MeetLite will appear in your extensions list and on your browser toolbar!
 6. Navigate to [meet.google.com](https://meet.google.com) and start or join any meeting. The MeetLite floating HUD will appear automatically in the bottom-right corner.

@@ -48,6 +48,7 @@
   const DEFAULT_CONFIG = {
     enabled: true,
     hudVisible: true,
+    isMinimized: false,
     showGraph: true,
     screenShareQuality: 'hd', // 'hd', 'saver', 'freeze', 'off'
     preset: 'low',
@@ -128,6 +129,10 @@
       host.style.bottom = 'auto';
     }
 
+    if (!currentConfig.hudVisible) {
+      host.style.display = 'none';
+    }
+
     // Attach Shadow Root for 100% CSS isolation
     const shadow = host.attachShadow({ mode: 'open' });
 
@@ -160,6 +165,14 @@
         box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12) !important;
         cursor: pointer !important;
         white-space: nowrap !important;
+        transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease !important;
+      }
+
+      #meet-lite-hud-pill:hover {
+        background: #f8fafc !important;
+        border-color: #94a3b8 !important;
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16) !important;
+        transform: translateY(-1px) !important;
       }
 
       .ml-pill-dot {
@@ -727,12 +740,20 @@
     shadow.appendChild(styleEl);
 
     const isOff = currentConfig.enabled === false;
+    const isMin = Boolean(currentConfig.isMinimized);
 
     const wrapper = document.createElement('div');
     wrapper.className = 'ml-root-wrap';
     wrapper.innerHTML = `
+      <!-- Capsule Pill (Minimized Floating Box) -->
+      <div id="meet-lite-hud-pill" style="display: ${isMin ? 'flex' : 'none'};" title="Click to expand MeetLite HUD (or drag to reposition)">
+        <div class="ml-pill-dot ${isOff ? 'disabled' : ''}"></div>
+        <span class="ml-pill-title">MeetLite</span>
+        <span class="ml-pill-stat" id="ml-pill-stat">${isOff ? 'OFF' : `${currentStats.totalKbps || 0} Kbps`}</span>
+      </div>
+
       <!-- Adjustable Resizable Card -->
-      <div id="meet-lite-hud-card" class="${isOff ? 'disabled-mode' : ''}" style="display: flex;">
+      <div id="meet-lite-hud-card" class="${isOff ? 'disabled-mode' : ''}" style="display: ${isMin ? 'none' : 'flex'};">
         
         <!-- Header -->
         <div class="ml-card-header" id="ml-drag-header">
@@ -750,6 +771,9 @@
                 <span class="ml-master-track"></span>
               </label>
             </div>
+
+            <!-- Minimize Button -->
+            <button class="ml-btn-icon" id="ml-btn-minimize" title="Minimize to floating pill">−</button>
 
             <!-- Close Button -->
             <button class="ml-btn-icon" id="ml-btn-close" title="Hide HUD">✕</button>
@@ -1305,6 +1329,8 @@
 
   function setupEvents(shadow, host, card) {
     const closeBtn = shadow.querySelector('#ml-btn-close');
+    const minBtn = shadow.querySelector('#ml-btn-minimize');
+    const pill = shadow.querySelector('#meet-lite-hud-pill');
     const dragHeader = shadow.querySelector('#ml-drag-header');
     const chkMaster = shadow.querySelector('#ml-chk-master');
     const masterStatusText = shadow.querySelector('#ml-master-status-text');
@@ -1313,17 +1339,46 @@
     // Master Switch Toggle (Enable / Disable)
     chkMaster.addEventListener('change', () => {
       currentConfig.enabled = chkMaster.checked;
+      const pillDot = shadow.querySelector('.ml-pill-dot');
+      const pillStat = shadow.querySelector('#ml-pill-stat');
       if (currentConfig.enabled) {
         card.classList.remove('disabled-mode');
         masterStatusText.textContent = 'ACTIVE';
         masterStatusText.classList.remove('off');
+        if (pillDot) pillDot.classList.remove('disabled');
+        if (pillStat) pillStat.textContent = `${currentStats.totalKbps || 0} Kbps`;
       } else {
         card.classList.add('disabled-mode');
         masterStatusText.textContent = 'OFF';
         masterStatusText.classList.add('off');
+        if (pillDot) pillDot.classList.add('disabled');
+        if (pillStat) pillStat.textContent = 'OFF';
       }
       saveConfig();
     });
+
+    // Minimize to capsule pill
+    if (minBtn && pill) {
+      minBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        card.style.display = 'none';
+        pill.style.display = 'flex';
+        currentConfig.isMinimized = true;
+        saveConfig();
+      });
+
+      // Click pill to restore full HUD card (unless user was dragging)
+      pill.addEventListener('click', (e) => {
+        if (pill.dataset.dragged === 'true') {
+          return;
+        }
+        pill.style.display = 'none';
+        card.style.display = 'flex';
+        currentConfig.isMinimized = false;
+        saveConfig();
+      });
+    }
 
     // Close (completely hide HUD from screen)
     closeBtn.addEventListener('click', (e) => {
@@ -1387,49 +1442,70 @@
     });
     ro.observe(card);
 
-    // Dragging
+    // Dragging (supports both Card Header and Capsule Pill)
     let isDragging = false;
     let startX = 0, startY = 0, origX = 0, origY = 0;
+    let hasMoved = false;
 
-    dragHeader.addEventListener('mousedown', (e) => {
-      if (e.target.closest('button, label, input')) return;
-      isDragging = true;
-      startX = e.clientX;
-      startY = e.clientY;
-      const rect = host.getBoundingClientRect();
-      origX = rect.left;
-      origY = rect.top;
-
-      const onMouseMove = (ev) => {
-        if (!isDragging) return;
-        const dx = ev.clientX - startX;
-        const dy = ev.clientY - startY;
-
-        const maxW = currentConfig.isMinimized ? 160 : card.offsetWidth;
-        const maxH = currentConfig.isMinimized ? 60 : card.offsetHeight;
-
-        const safeX = Math.max(10, Math.min(window.innerWidth - maxW, origX + dx));
-        const safeY = Math.max(10, Math.min(window.innerHeight - maxH, origY + dy));
-
-        host.style.left = `${safeX}px`;
-        host.style.top = `${safeY}px`;
-        host.style.right = 'auto';
-        host.style.bottom = 'auto';
-      };
-
-      const onMouseUp = () => {
-        if (!isDragging) return;
-        isDragging = false;
-        document.removeEventListener('mousemove', onMouseMove);
-        document.removeEventListener('mouseup', onMouseUp);
-
+    function bindDrag(handle, isPillHandle) {
+      if (!handle) return;
+      handle.addEventListener('mousedown', (e) => {
+        if (e.target.closest('button, label, input')) return;
+        isDragging = true;
+        hasMoved = false;
+        startX = e.clientX;
+        startY = e.clientY;
         const rect = host.getBoundingClientRect();
-        safeStorageSyncSet({ meetLitePos: { x: rect.left, y: rect.top } });
-      };
+        origX = rect.left;
+        origY = rect.top;
 
-      document.addEventListener('mousemove', onMouseMove);
-      document.addEventListener('mouseup', onMouseUp);
-    });
+        const onMouseMove = (ev) => {
+          if (!isDragging) return;
+          const dx = ev.clientX - startX;
+          const dy = ev.clientY - startY;
+
+          if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+            hasMoved = true;
+            if (isPillHandle && pill) {
+              pill.dataset.dragged = 'true';
+            }
+          }
+
+          const maxW = currentConfig.isMinimized ? 160 : card.offsetWidth;
+          const maxH = currentConfig.isMinimized ? 60 : card.offsetHeight;
+
+          const safeX = Math.max(10, Math.min(window.innerWidth - maxW, origX + dx));
+          const safeY = Math.max(10, Math.min(window.innerHeight - maxH, origY + dy));
+
+          host.style.left = `${safeX}px`;
+          host.style.top = `${safeY}px`;
+          host.style.right = 'auto';
+          host.style.bottom = 'auto';
+        };
+
+        const onMouseUp = () => {
+          if (!isDragging) return;
+          isDragging = false;
+          document.removeEventListener('mousemove', onMouseMove);
+          document.removeEventListener('mouseup', onMouseUp);
+
+          const rect = host.getBoundingClientRect();
+          safeStorageSyncSet({ meetLitePos: { x: rect.left, y: rect.top } });
+
+          if (isPillHandle && pill && hasMoved) {
+            setTimeout(() => {
+              if (pill) delete pill.dataset.dragged;
+            }, 50);
+          }
+        };
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+      });
+    }
+
+    bindDrag(dragHeader, false);
+    bindDrag(pill, true);
 
     // Presets
     const presetChips = shadow.querySelectorAll('.ml-preset-chip');
@@ -1767,6 +1843,16 @@
               const graphWrap = shadow.querySelector('#ml-mini-graph-wrap');
               if (chkGraph) chkGraph.checked = currentConfig.showGraph !== false;
               if (graphWrap) graphWrap.style.display = currentConfig.showGraph !== false ? 'block' : 'none';
+              const pillEl = shadow.querySelector('#meet-lite-hud-pill');
+              if (card && pillEl) {
+                if (currentConfig.isMinimized) {
+                  card.style.display = 'none';
+                  pillEl.style.display = 'flex';
+                } else {
+                  card.style.display = 'flex';
+                  pillEl.style.display = 'none';
+                }
+              }
               if (card) {
                 if (currentConfig.enabled === false) {
                   card.classList.add('disabled-mode');
